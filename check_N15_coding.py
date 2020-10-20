@@ -30,7 +30,7 @@ d3=Dataset('tmask.nc')
 tmask=d3.variables['tmaskutil'][:]
 
 
-#%% create initial conditions for tracer concentrations as per NEMO code
+#%% create initial conditions for tracer concentrations as per MEDUSA code
 
 PHN=np.zeros(DIN.shape)
 PHN[:14,:,:]=0.1 # over the frist 200 m else 0
@@ -46,7 +46,7 @@ ZMI_N15=initial_conditions(ZMI)
 ZME_N15=initial_conditions(ZME)
 DET_N15=initial_conditions(DET)
 
-#%%  initial tracer concentrations next time step
+#%%  initial tracer concentrations next time step to 0
 PHN_next=np.zeros(PHN.shape)
 PHD_next=np.zeros(PHN.shape)
 ZMI_next=np.zeros(PHN.shape)
@@ -62,7 +62,7 @@ DIN_N15_next=np.zeros(PHN.shape)
 DET_N15_next=np.zeros(PHN.shape)
 
 
-#%% check that things are ok
+#%% check that things are ok ratios are 5 permil
 plt.close('all')
 fig = plt.figure(figsize=(15,10))
 ax1 = fig.add_subplot(231)
@@ -194,8 +194,8 @@ def compute_fluxes():
 
     
         
-    for jj in range(fprn.shape[0]):
-        for ji in range(fprn.shape[1]):
+    for jj in range(fprn.shape[0]): #loop j
+        for ji in range(fprn.shape[1]): # loop i
                PHN_flux[jj,ji] = b0 * ( fprn[jj,ji] * zphn[jj,ji] \
                                      - fdpn[jj,ji] \
                                      - fdpn[jj,ji] \
@@ -231,7 +231,7 @@ def compute_fluxes():
                                     + ffast2slown[jj,ji] )            
   
                fn_cons[jj,ji] = -(fprn[jj,ji] * zphn[jj,ji])\
-                                      -(fprd[jj,ji] * zphd[jj,ji])        
+                                 -(fprd[jj,ji] * zphd[jj,ji])        
                  
                fn_prod[jj,ji] =(xphi * (fgmipn[jj,ji] + fgmid[jj,ji])) \
                           + (xphi * (fgmepn[jj,ji]   \
@@ -322,50 +322,50 @@ def compute_new_concentrations():
          
 
 
-#%% define fluxes and set some random values
+#%% define fluxes for the computation of tracer fluxes and assign some random values
 rn15std=0.0036765
-fprn=np.zeros((DIN.shape[2],DIN.shape[3]))+.1
-zphn=np.zeros(fprn.shape)+.1
-zphd=np.zeros(fprn.shape)+.2
-fprd=np.zeros(fprn.shape)+.3
+fprn=np.zeros((DIN.shape[2],DIN.shape[3]))+.1   #production phyt non-diatoms
+zphn=np.zeros(fprn.shape)+.1   #non-diatom concentraion
+zphd=np.zeros(fprn.shape)+.2   #diatom concentraion
+fprd=np.zeros(fprn.shape)+.3   #production phyt diatoms
 
-fdpn=np.zeros(fprn.shape)+.1
-fdpn2=np.zeros(fprn.shape)+.2
-fgmipn=np.zeros(fprn.shape)+.3
-fgmepn=np.zeros(fprn.shape)+.4
+fdpn=np.zeros(fprn.shape)+.1   #loss term
+fdpn2=np.zeros(fprn.shape)+.2  #loss term 2
+fgmipn=np.zeros(fprn.shape)+.3  #eaten by zmi
+fgmepn=np.zeros(fprn.shape)+.4  #eaten by zme
 
 
-fdpd=np.zeros(fprn.shape)+.2
-fdpd2=np.zeros(fprn.shape)+.3
-fgmepd=np.zeros(fprn.shape)+.5
+fdpd=np.zeros(fprn.shape)+.2 #loss term
+fdpd2=np.zeros(fprn.shape)+.3 #loss term2
+fgmepd=np.zeros(fprn.shape)+.5 #eaten by zme
 
-fmigrown15=np.zeros(fprn.shape)+.05
-fgmezmi=np.zeros(fprn.shape)+.15
-fdzmi=np.zeros(fprn.shape)+.25
-fdzmi2=np.zeros(fprn.shape)+.35
+fmigrown15=np.zeros(fprn.shape)+.05 #grow term
+fgmezmi=np.zeros(fprn.shape)+.15 #eaten by zme
+fdzmi=np.zeros(fprn.shape)+.25 #loss term 
+fdzmi2=np.zeros(fprn.shape)+.35 #loss term2
 
-fmegrown15=np.zeros(fprn.shape)+.15
-fdzme=np.zeros(fprn.shape)+.25
-fdzme2=np.zeros(fprn.shape)+.35
+fmegrown15=np.zeros(fprn.shape)+.15  #grow term
+fdzme=np.zeros(fprn.shape)+.25 #loss term  
+fdzme2=np.zeros(fprn.shape)+.35 #loss term2 
 
-finmi=np.zeros(fprn.shape)+.1
-finme=np.zeros(fprn.shape)+.2
-fgmid=np.zeros(fprn.shape)+.3
-fgmed=np.zeros(fprn.shape)+.2
-fdd=np.zeros(fprn.shape)+.22
-fslowgain=np.zeros(fprn.shape)
-fslowloss=np.zeros(fprn.shape)
-f_sbenin_n=np.zeros(fprn.shape)
-fse3t=np.zeros(fprn.shape)+.1
-ffast2slown=np.zeros(fprn.shape)
+finmi=np.zeros(fprn.shape)+.1 # assimilation ineffi
+finme=np.zeros(fprn.shape)+.2 # assimilation ineffi
+fgmid=np.zeros(fprn.shape)+.3 # grazing zmi on det
+fgmed=np.zeros(fprn.shape)+.2 # grazing zme on det
+fdd=np.zeros(fprn.shape)+.22  #remin.
+fslowgain=np.zeros(fprn.shape) #sinking
+fslowloss=np.zeros(fprn.shape) #sinking
+f_sbenin_n=np.zeros(fprn.shape) #sinking
+fse3t=np.zeros(fprn.shape)+.1 #sinking
+ffast2slown=np.zeros(fprn.shape) #sinking
 
-fmiexcr=np.zeros(fprn.shape)+.1
+fmiexcr=np.zeros(fprn.shape)+.1 #excr
 fmeexcr=np.zeros(fprn.shape)+.2
 freminn=np.zeros(fprn.shape)+.2
 
 bmiexcr=np.zeros(fprn.shape)
 bmeexcr=np.zeros(fprn.shape)
-#%% define ratio fields 
+#%% initialise N15 ratio fields 
 un=np.zeros(fprn.shape)
 bassimphn=np.zeros(fprn.shape)
 bassimphd=np.zeros(fprn.shape)
@@ -382,13 +382,13 @@ fcmiexcr=np.zeros(fprn.shape)
 fcmeexcr=np.zeros(fprn.shape)
 rmi=np.zeros(fprn.shape)
 rme=np.zeros(fprn.shape)     
-#%% define tracer fluxes
-PHN_flux=np.zeros(fprn.shape)
-PHD_flux=np.zeros(fprn.shape)
-ZMI_flux=np.zeros(fprn.shape)
-ZME_flux=np.zeros(fprn.shape)
-DET_flux=np.zeros(fprn.shape)
-DIN_flux=np.zeros(fprn.shape)
+#%% define tracer fluxes and set zeros
+PHN_flux=np.zeros(fprn.shape)  #phyto non-diatom
+PHD_flux=np.zeros(fprn.shape)  #phyto diatom
+ZMI_flux=np.zeros(fprn.shape)  #zoo micro
+ZME_flux=np.zeros(fprn.shape)  #zoo meso
+DET_flux=np.zeros(fprn.shape)  #detritus 
+DIN_flux=np.zeros(fprn.shape)  #DIN 
 
 PHN_N15_flux=np.zeros(fprn.shape)
 PHD_N15_flux=np.zeros(fprn.shape)
@@ -402,7 +402,7 @@ compute_fluxes()
 compute_new_concentrations()
 
 
-#%%
+#%% delta ratio after update
 
 
 plt.close('all')
