@@ -22,6 +22,8 @@ def delta(C,C15):
     
     return tmp
 
+# both euqations verified
+    
 d1=Dataset('DIN.nc')
 lon=d1.variables['nav_lon'][:]
 lat=d1.variables['nav_lat'][:]
@@ -30,7 +32,11 @@ d3=Dataset('tmask.nc')
 tmask=d3.variables['tmaskutil'][:]
 
 
+
+
 #%% create initial conditions for tracer concentrations as per MEDUSA code
+
+
 
 PHN=np.zeros(DIN.shape)
 PHN[:14,:,:]=0.1 # over the frist 200 m else 0
@@ -99,7 +105,7 @@ def calculate_ratios():
     global fprn,zphn,fprd,zphd
     global DIN,DIN_N15,PHN,PHN_N15,PHD,PHD_N15,ZMI,ZMI_N15,ZME,ZME_N15
     global rn15std
-    global un,rdin,bassimphn,fcassimphn,bassimphd,fcassimphn,rtdin15,rtphnn15,rtphdn15
+    global un,rdin,bassimphn,fcassimphn,bassimphd,fcassimphd,rtdin15,rtphnn15,rtphdn15
     global rtzmin15,rtzmen15,rtdetrn15,rmi,bmiexcr,fcmiexcr,rme,bmeexcr,fcmeexcr
 
     eps_assim = 0.
@@ -118,15 +124,18 @@ def calculate_ratios():
         for ji in range(fprn.shape[1]):
               #uno3 = npp*dtbio/biono3
               un[jj,ji]=(fprn[jj,ji] * zphn[jj,ji] + fprd[jj,ji] * zphd[jj,ji]) * rdt /max(DIN[tdim,zdim,jj,ji],rmin)
+              
               un[jj,ji] = min(un[jj,ji], rmax)
               un[jj,ji] = max(un[jj,ji], rmin)
               #rno3 = biodin15/(biono3-biodin15)
               rdin[jj,ji] = DIN_N15[tdim,zdim,jj,ji]/(max(DIN[tdim,zdim,jj,ji]-DIN_N15[tdim,zdim,jj,ji],rmin))
               rdin[jj,ji] = min(rdin[jj,ji],2*rn15std)
               rdin[jj,ji] = max(rdin[jj,ji],rn15std/2)
+              #print(rdin[0,0])
               #bassim = rno3 + eps_assim*(1-uno3)/uno3*log(1-uno3)*rno3/1000.
               bassimphn[jj,ji]=rdin[jj,ji]+rdin[jj,ji]*eps_assim*(1-un[jj,ji])/un[jj,ji]*np.log(1-un[jj,ji])/1000.
               fcassimphn[jj,ji]=bassimphn[jj,ji]/(1+bassimphn[jj,ji])
+              #print(fcassimphn[0,0])
               #bassim = rno3 + eps_assim*(1-uno3)/uno3*log(1-uno3)*rno3/1000.
               bassimphd[jj,ji]=rdin[jj,ji]+rdin[jj,ji]*eps_assim*(1-un[jj,ji])/un[jj,ji]*np.log(1-un[jj,ji])/1000.
               fcassimphd[jj,ji]=bassimphd[jj,ji]/(1+bassimphd[jj,ji])
@@ -167,10 +176,89 @@ def calculate_ratios():
               bmeexcr[jj,ji] = rme[jj,ji] - eps_excr*rme[jj,ji]/1000.
               fcmeexcr[jj,ji] = bmeexcr[jj,ji]/(1+bmeexcr[jj,ji])
               
-              return 
+    return 
     
 
 #%%
+
+
+def calc_growth():
+    global fprn,fgmipn,fgmid
+    xphi=.2
+    xthetapn=6.625
+    xbetan=0.77
+    xthetazmi=5.625
+    xbetac=0.64
+    xkc=0.80
+    xthetazme=5.625
+    xthetapd=6.625
+    
+    finmi=np.zeros(fprn.shape)
+    finme=np.zeros(fprn.shape)
+    ficmi=np.zeros(fprn.shape)
+    finmin15=np.zeros(fprn.shape)
+    finmen15=np.zeros(fprn.shape)
+    ficmin15=np.zeros(fprn.shape)
+    fmigrow=np.zeros(fprn.shape)
+    fmigrown15=np.zeros(fprn.shape)
+    ficme=np.zeros(fprn.shape)
+    fgmidc=np.zeros(fprn.shape)+.1
+    fgmidc=np.zeros(fprn.shape)+.1
+    fgmedc=np.zeros(fprn.shape)+.1
+    ficmen15=np.zeros(fprn.shape)
+    fmegrow=np.zeros(fprn.shape)
+    fmegrown15=np.zeros(fprn.shape)
+    for jj in range(fprn.shape[0]): #loop j
+        for ji in range(fprn.shape[1]): # loop i
+            
+               finmi[jj,ji]  = (1.0 - xphi) * (fgmipn[jj,ji]+ fgmid[jj,ji])
+               ficmi[jj,ji]  = (1.0 - xphi) * ((xthetapn * fgmipn[jj,ji]) + fgmidc[jj,ji])
+               finmin15[jj,ji]  = (1.0 - xphi) * (rtphnn15[jj,ji]*fgmipn[jj,ji]+ rtdetrn15[jj,ji]*fgmid[jj,ji])
+               ficmin15[jj,ji]  = (1.0 - xphi) * ((xthetapn * rtphnn15[jj,ji]* fgmipn[jj,ji]) +  fgmidc[jj,ji])
+               fstarmi = (xbetan * xthetazmi) / (xbetac * xkc)
+               fmith = (ficmi[jj,ji]/ (finmi[jj,ji]+ finmi[jj,ji]))
+               if (fmith == fstarmi):
+                  fmigrow[jj,ji]= xbetan * finmi[jj,ji]
+                  fmiexcr[jj,ji]= 0.0
+                  fmigrown15[jj,ji]= xbetan * finmin15[jj,ji]
+
+               else:
+                  fmigrow[jj,ji]= (xbetac * xkc * ficmi[jj,ji]) / xthetazmi
+                  fmiexcr[jj,ji]= ficmi[jj,ji]* ((xbetan / (fmith + fmith)) - ((xbetac * xkc) / xthetazmi))
+                  fmigrown15[jj,ji]= (xbetac * xkc * ficmin15[jj,ji]) / xthetazmi 
+                  
+                  
+                  
+               finme[jj,ji]   = (1.0 - xphi) \
+                   *(fgmepn[jj,ji] + fgmepd[jj,ji] \
+                   +fgmezmi[jj,ji] + fgmed[jj,ji])
+               ficme[jj,ji]   = (1.0 - xphi) *\
+                                ((xthetapn * fgmepn[jj,ji]) +\
+                                (xthetapd * fgmepd[jj,ji]) +\
+                                (xthetazmi * fgmezmi[jj,ji]) + fgmedc[jj,ji])
+
+               finmen15[jj,ji]   = (1.0 - xphi) *\
+                                (rtphnn15[jj,ji]*fgmepn[jj,ji] + rtphdn15[jj,ji]*fgmepd[jj,ji] +\
+                                rtzmin15[jj,ji]*fgmezmi[jj,ji] + rtdetrn15[jj,ji]*fgmed[jj,ji])
+               ficmen15[jj,ji]   = (1.0 - xphi) *\
+                                ((xthetapn *rtphnn15[jj,ji]* fgmepn[jj,ji]) +\
+                                 (xthetapd * rtphdn15[jj,ji]* fgmepd[jj,ji]) + \
+                                 (xthetazmi * rtzmin15[jj,ji]* fgmezmi[jj,ji]) + fgmedc[jj,ji])
+
+               fstarme        = (xbetan * xthetazme) / (xbetac * xkc)
+  
+               fmeth   = (ficme[jj,ji] / (finme[jj,ji] + finme[jj,ji]))
+               if (fmeth == fstarme):
+                  fmegrow[jj,ji] = xbetan * finme[jj,ji]
+                  fmeexcr[jj,ji] = 0.0
+                  fmegrown15[jj,ji] = xbetan * finmen15[jj,ji] 
+               else:
+                  fmegrow[jj,ji] = (xbetac * xkc * ficme[jj,ji]) / xthetazme
+                  fmeexcr[jj,ji] = ficme[jj,ji] * ((xbetan / (fmeth + fmeth)) -  ((xbetac * xkc) / xthetazme))
+                  fmegrown15[jj,ji] = (xbetac * xkc * ficmen15[jj,ji]) / xthetazme  
+
+    return finmi,finme,fmigrow,fmigrown15,fmegrow,fmegrown15
+
 
 def compute_fluxes():
     global fprn,zphn,fprd,zphd
@@ -181,7 +269,7 @@ def compute_fluxes():
     global rtzmin15,rtzmen15,rtdetrn15,rmi,bmiexcr,fcmiexcr,rme,bmeexcr,fcmeexcr,fmiexcr,fmeexcr,freminn
     global PHN_flux,PHD_flux,ZMI_flux,ZME_flux,DET_flux,DIN_flux
     
-
+    finmi,finme,fmigrow,fmigrown15,fmegrow,fmegrown15=calc_growth()
     fn_cons_n15=np.zeros(fprn.shape)
     fn_prod_n15=np.zeros(fprn.shape)
     fn_cons=np.zeros(fprn.shape)
@@ -198,7 +286,6 @@ def compute_fluxes():
         for ji in range(fprn.shape[1]): # loop i
                PHN_flux[jj,ji] = b0 * ( fprn[jj,ji] * zphn[jj,ji] \
                                      - fdpn[jj,ji] \
-                                     - fdpn[jj,ji] \
                                      - fdpn2[jj,ji] \
                                      - fgmipn[jj,ji] \
                                      - fgmepn[jj,ji] ) 
@@ -209,12 +296,12 @@ def compute_fluxes():
                                       - fdpd2[jj,ji] \
                                       - fgmepd[jj,ji])
                    
-               ZMI_flux[jj,ji] = b0 * (fmigrown15[jj,ji] \
+               ZMI_flux[jj,ji] = b0 * (fmigrow[jj,ji] \
                                   - fgmezmi[jj,ji] \
                                   - fdzmi[jj,ji]\
                                   - fdzmi2[jj,ji])
                    
-               ZME_flux[jj,ji] = b0 * (fmegrown15[jj,ji]            \
+               ZME_flux[jj,ji] = b0 * (fmegrow[jj,ji]            \
                                     - fdzme[jj,ji] \
                                     - fdzme2[jj,ji])
 
@@ -249,7 +336,6 @@ def compute_fluxes():
                DIN_flux[jj,ji] = b0 * ( fn_prod[jj,ji] + fn_cons[jj,ji] )
                
                PHN_N15_flux[jj,ji] = b0 * ( fcassimphn[jj,ji]*fprn[jj,ji] * zphn[jj,ji] \
-                                     - rtphnn15[jj,ji]*fdpn[jj,ji] \
                                      - rtphnn15[jj,ji]*fdpn[jj,ji] \
                                      - rtphnn15[jj,ji]*fdpn2[jj,ji] \
                                      - rtphnn15[jj,ji]*fgmipn[jj,ji] \
@@ -324,15 +410,15 @@ def compute_new_concentrations():
 
 #%% define fluxes for the computation of tracer fluxes and assign some random values
 rn15std=0.0036765
-fprn=np.zeros((DIN.shape[2],DIN.shape[3]))+.1   #production phyt non-diatoms
-zphn=np.zeros(fprn.shape)+.1   #non-diatom concentraion
+fprn=np.zeros((DIN.shape[2],DIN.shape[3]))+.5   #production phyt non-diatoms
+zphn=np.zeros(fprn.shape)+.2   #non-diatom concentraion
 zphd=np.zeros(fprn.shape)+.2   #diatom concentraion
-fprd=np.zeros(fprn.shape)+.3   #production phyt diatoms
+fprd=np.zeros(fprn.shape)+.5   #production phyt diatoms
 
-fdpn=np.zeros(fprn.shape)+.1   #loss term
-fdpn2=np.zeros(fprn.shape)+.2  #loss term 2
-fgmipn=np.zeros(fprn.shape)+.3  #eaten by zmi
-fgmepn=np.zeros(fprn.shape)+.4  #eaten by zme
+fdpn=np.zeros(fprn.shape)+1   #loss term
+fdpn2=np.zeros(fprn.shape)+2  #loss term 2
+fgmipn=np.zeros(fprn.shape)+1  #eaten by zmi
+fgmepn=np.zeros(fprn.shape)+1  #eaten by zme
 
 
 fdpd=np.zeros(fprn.shape)+.2 #loss term
@@ -348,8 +434,7 @@ fmegrown15=np.zeros(fprn.shape)+.15  #grow term
 fdzme=np.zeros(fprn.shape)+.25 #loss term  
 fdzme2=np.zeros(fprn.shape)+.35 #loss term2 
 
-finmi=np.zeros(fprn.shape)+.1 # assimilation ineffi
-finme=np.zeros(fprn.shape)+.2 # assimilation ineffi
+
 fgmid=np.zeros(fprn.shape)+.3 # grazing zmi on det
 fgmed=np.zeros(fprn.shape)+.2 # grazing zme on det
 fdd=np.zeros(fprn.shape)+.22  #remin.
@@ -433,3 +518,133 @@ plt.colorbar()
 plt.text(10,10,'DET',color='white')
 
 plt.savefig('Updated_surface_concentration.png',dpi=200,pading=.1,bbox_inches='tight')
+
+
+#%%% test for PHN according to Chris with eps=0 the delta should not change
+
+
+def calc_zmi_flux(b0,fmigrown15,fgmezmi,fdzmi,fdzmi2):
+    out=b0 * (fmigrown15 \
+            - fgmezmi \
+            - fdzmi\
+            - fdzmi2)
+    
+    return out
+
+def calc_zmi_n15_flux(b0,fmigrown15,fgmezmi,fdzmi,fdzmi2,rtzmin15):
+    out=b0 * (fmigrown15 \
+        - rtzmin15*fgmezmi \
+        - rtzmin15*fdzmi\
+        - rtzmin15*fdzmi2)
+
+    return out
+
+def calc_phn_flux(b0,fprn,zphn,fdpn,fdpn2,fgmipn,fgmepn):
+    out= b0 * ( fprn * zphn \
+                      - fdpn \
+                      - fdpn2 \
+                      - fgmipn \
+                      - fgmepn ) 
+    return out
+
+def calc_phn_n15_flux(b0,fprn,zphn,fdpn,fdpn2,fgmipn,fgmepn,fcassimphn,rtphnn15):
+    out = b0 * ( fcassimphn*fprn * zphn \
+                      - rtphnn15*fdpn \
+                      - rtphnn15*fdpn2 \
+                      - rtphnn15*fgmipn \
+                      - rtphnn15*fgmepn ) 
+    return out
+
+
+def calc(fprn,zphn,fprd,zphd,PHN,PHN_N15,DIN,DIN_N15):
+    eps_assim = 0.
+    #eps_excr= 0.
+    rn15std=0.0036765
+    rmin=0.0000001
+    rmax=0.9999999
+    rdt=40*60
+    un=(fprn * zphn + fprd * zphd) * rdt /max(DIN,rmin)
+    
+    un = min(un, rmax)
+    un = max(un, rmin)
+    #rno3 = biodin15/(biono3-biodin15)
+    rdin = DIN_N15/(max(DIN-DIN_N15,rmin))
+    
+    rdin = min(rdin,2*rn15std)
+    rdin = max(rdin,rn15std/2)
+    print(rdin)
+    #bassim = rno3 + eps_assim*(1-uno3)/uno3*log(1-uno3)*rno3/1000.
+    bassimphn=rdin+rdin*eps_assim*(1-un)/un*np.log(1-un)/1000.
+    fcassimphn=bassimphn/(1+bassimphn)
+    print(fcassimphn)
+    rtphnn15 = PHN_N15 /max(PHN,rmin)
+    rtphnn15 = min(rtphnn15,2.*rn15std/(1+rn15std))
+    rtphnn15 = max(rtphnn15,rn15std/(1+rn15std)/2.)
+    return  fcassimphn,rtphnn15
+
+#%%
+
+def calc_zmi(ZMI,ZMI_N15):
+  
+    
+    eps_assim = 0.
+    #eps_excr= 0.
+    rn15std=0.0036765
+    rmin=0.0000001
+    rmax=0.9999999
+    rdt=40*60
+    
+    rtzmin15 = ZMI_N15 /max(ZMI,rmin)
+    rtzmin15 = min(rtzmin15,2.*rn15std/(1+rn15std))
+    rtzmin15 = max(rtzmin15,rn15std/(1+rn15std)/2.)
+    return  rtzmin15
+
+initial_zmi=0.1
+initial_zmi_n15=initial_conditions(initial_zmi)
+delta(initial_zmi,initial_zmi_n15)
+rtzmin15=calc_zmi(initial_zmi,initial_zmi_n15)
+b0=1
+fmigrown15=2
+fgmezmi=1
+fdzmi=.4
+fdzmi2=.2
+flx_N=calc_zmi_flux(b0, fmigrown15, fgmezmi, fdzmi, fdzmi2)
+dayinsec=86400.
+new_zmi=initial_zmi+flx_N/dayinsec
+
+flx_N15=calc_zmi_n15_flux(b0, fmigrown15, fgmezmi, fdzmi, fdzmi2,rtzmin15)
+dayinsec=86400.
+new_zmi_n15=initial_zmi_n15+flx_N15/dayinsec
+print(delta(new_zmi,new_zmi_n15))
+
+#%%
+def run_test_phn():    
+    initial_phn=0.1
+    initial_phn_n15=initial_conditions(initial_phn)
+    
+    initial_din=4
+    initial_din_n15=initial_conditions(initial_din)
+    
+    fprn=.5
+    zphn=.2
+    fprd=.5
+    zphd=.2
+    
+    fdpn=1
+    fdpn2=2
+    fgmipn=1
+    fgmepn=1
+    b0=1
+    
+    print(delta(initial_phn,initial_phn_n15))
+    
+    fcassimphn,rtphnn15=calc(fprn,zphn,fprd,zphd,initial_phn,initial_phn_n15,initial_din,initial_din_n15)
+    
+    flx_N=calc_phn_flux(b0, fprn, zphn, fdpn, fdpn2, fgmipn, fgmepn) 
+    flx_N15=calc_phn_n15_flux(b0, fprn, zphn, fdpn, fdpn2, fgmipn, fgmepn, fcassimphn, rtphnn15)
+    dayinsec=86400.
+    new_phn=initial_phn+flx_N/dayinsec
+    new_phn_n15=initial_phn_n15+flx_N15/dayinsec
+    
+    print(delta(new_phn,new_phn_n15))
+
