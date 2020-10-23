@@ -9,11 +9,11 @@ Created on Thu Jul 25 21:24:35 2019
 from netCDF4 import Dataset 
 import matplotlib.pyplot as plt
 import numpy as np
+import  cmocean 
 
-
-def initial_conditions(din):
+def initial_conditions(din,ratio=1.005):
     rn15std=0.0036765
-    tmp=1.005*rn15std*din/(1+1.005*rn15std)
+    tmp=ratio*rn15std*din/(1+ratio*rn15std)
     return tmp
 
 def delta(C,C15):
@@ -40,17 +40,17 @@ tmask=d3.variables['tmaskutil'][:]
 
 PHN=np.zeros(DIN.shape)
 PHN[:14,:,:]=0.1 # over the frist 200 m else 0
-PHD=PHN.copy()
-ZMI=PHN.copy()
-ZME=PHN.copy()
-DET=PHN.copy()
+PHD=PHN.copy()+.2
+ZMI=PHN.copy()+.5
+ZME=PHN.copy()+.7
+DET=PHN.copy()+.25
 
-DIN_N15=initial_conditions(DIN)
-PHN_N15=initial_conditions(PHN)
-PHD_N15=initial_conditions(PHD)
-ZMI_N15=initial_conditions(ZMI)
-ZME_N15=initial_conditions(ZME)
-DET_N15=initial_conditions(DET)
+PHN_N15=initial_conditions(PHN,1.005)
+PHD_N15=initial_conditions(PHD,1.005)
+ZMI_N15=initial_conditions(ZMI,1.005)
+ZME_N15=initial_conditions(ZME,1.005)
+DIN_N15=initial_conditions(DIN,1.005)
+DET_N15=initial_conditions(DET,1.005)
 
 #%%  initial tracer concentrations next time step to 0
 PHN_next=np.zeros(PHN.shape)
@@ -72,27 +72,27 @@ DET_N15_next=np.zeros(PHN.shape)
 plt.close('all')
 fig = plt.figure(figsize=(15,10))
 ax1 = fig.add_subplot(231)
-plt.pcolormesh(np.where(tmask[0,:,:]==0,1,delta(PHN[0,0,:,:],PHN_N15[0,0,:,:])),vmin=4.9,vmax=5.1)
+plt.pcolormesh(np.where(tmask[0,:,:]==0,1,delta(PHN[0,0,:,:],PHN_N15[0,0,:,:])),vmin=4.7,vmax=5.4)
 plt.colorbar()
 plt.text(10,10,'PHN',color='white')
 ax1 = fig.add_subplot(232)
-plt.pcolormesh(np.where(tmask[0,:,:]==0,1,delta(PHD[0,0,:,:],PHD_N15[0,0,:,:])),vmin=4.9,vmax=5.1)
+plt.pcolormesh(np.where(tmask[0,:,:]==0,1,delta(PHD[0,0,:,:],PHD_N15[0,0,:,:])),vmin=4.7,vmax=5.4)
 plt.colorbar()
 plt.text(10,10,'PHD',color='white')
 ax1 = fig.add_subplot(233)
-plt.pcolormesh(np.where(tmask[0,:,:]==0,1,delta(ZMI[0,0,:,:],ZMI_N15[0,0,:,:])),vmin=4.9,vmax=5.1)
+plt.pcolormesh(np.where(tmask[0,:,:]==0,1,delta(ZMI[0,0,:,:],ZMI_N15[0,0,:,:])),vmin=4.7,vmax=5.4)
 plt.colorbar()
 plt.text(10,10,'ZMI',color='white')
 ax1 = fig.add_subplot(234)
-plt.pcolormesh(np.where(tmask[0,:,:]==0,1,delta(ZME[0,0,:,:],ZME_N15[0,0,:,:])),vmin=4.9,vmax=5.1)
+plt.pcolormesh(np.where(tmask[0,:,:]==0,1,delta(ZME[0,0,:,:],ZME_N15[0,0,:,:])),vmin=4.7,vmax=5.4)
 plt.colorbar()
 plt.text(10,10,'ZME',color='white')
 ax1 = fig.add_subplot(235)
-plt.pcolormesh(np.where(tmask[0,:,:]==0,1,delta(DIN[0,0,:,:],DIN_N15[0,0,:,:])),vmin=4.9,vmax=5.1)
+plt.pcolormesh(np.where(tmask[0,:,:]==0,1,delta(DIN[0,0,:,:],DIN_N15[0,0,:,:])),vmin=4.7,vmax=5.4)
 plt.colorbar()
 plt.text(10,10,'DIN',color='white')
 ax1 = fig.add_subplot(236)
-plt.pcolormesh(np.where(tmask[0,:,:]==0,1,delta(DET[0,0,:,:],DET_N15[0,0,:,:])),vmin=4.9,vmax=5.1)
+plt.pcolormesh(np.where(tmask[0,:,:]==0,1,delta(DET[0,0,:,:],DET_N15[0,0,:,:])),vmin=4.7,vmax=5.4)
 plt.colorbar()
 plt.text(10,10,'DET',color='white')
 
@@ -111,8 +111,9 @@ def calculate_ratios():
     eps_assim = 0.
     eps_excr= 0.
 
-    rmin=0.0000001
-    rmax=0.9999999
+    rmin=0.000000001
+    dmin=0.000001
+    rmax=0.999999999
     rdt=40*60
    
     #keep code as similar to Fortran so we can copy across
@@ -123,12 +124,12 @@ def calculate_ratios():
     for jj in range(fprn.shape[0]):
         for ji in range(fprn.shape[1]):
               #uno3 = npp*dtbio/biono3
-              un[jj,ji]=(fprn[jj,ji] * zphn[jj,ji] + fprd[jj,ji] * zphd[jj,ji]) * rdt /max(DIN[tdim,zdim,jj,ji],rmin)
+              un[jj,ji]=(fprn[jj,ji] * zphn[jj,ji] + fprd[jj,ji] * zphd[jj,ji]) * rdt /max(DIN[tdim,zdim,jj,ji],dmin)
               
               un[jj,ji] = min(un[jj,ji], rmax)
               un[jj,ji] = max(un[jj,ji], rmin)
               #rno3 = biodin15/(biono3-biodin15)
-              rdin[jj,ji] = DIN_N15[tdim,zdim,jj,ji]/(max(DIN[tdim,zdim,jj,ji]-DIN_N15[tdim,zdim,jj,ji],rmin))
+              rdin[jj,ji] = DIN_N15[tdim,zdim,jj,ji]/(max(DIN[tdim,zdim,jj,ji]-DIN_N15[tdim,zdim,jj,ji],dmin))
               rdin[jj,ji] = min(rdin[jj,ji],2*rn15std)
               rdin[jj,ji] = max(rdin[jj,ji],rn15std/2)
               #print(rdin[0,0])
@@ -183,45 +184,50 @@ def calculate_ratios():
 
 
 def calc_growth():
-    global fprn,fgmipn,fgmid
-    xphi=.2
-    xthetapn=6.625
-    xbetan=0.77
-    xthetazmi=5.625
-    xbetac=0.64
-    xkc=0.80
-    xthetazme=5.625
-    xthetapd=6.625
-    
-    finmi=np.zeros(fprn.shape)
-    finme=np.zeros(fprn.shape)
-    ficmi=np.zeros(fprn.shape)
-    finmin15=np.zeros(fprn.shape)
-    finmen15=np.zeros(fprn.shape)
-    ficmin15=np.zeros(fprn.shape)
-    fmigrow=np.zeros(fprn.shape)
-    fmigrown15=np.zeros(fprn.shape)
-    ficme=np.zeros(fprn.shape)
-    fgmidc=np.zeros(fprn.shape)+.1
-    fgmidc=np.zeros(fprn.shape)+.1
-    fgmedc=np.zeros(fprn.shape)+.1
-    ficmen15=np.zeros(fprn.shape)
-    fmegrow=np.zeros(fprn.shape)
-    fmegrown15=np.zeros(fprn.shape)
-    for jj in range(fprn.shape[0]): #loop j
-        for ji in range(fprn.shape[1]): # loop i
+        
+        global fprn,fgmipn,fgmid
+        global fstarmi,fmith,ficmi,ficmin15
+        xphi=.2
+        xthetapn=6.625
+        xbetan=0.77
+        xthetazmi=5.625
+        xbetac=0.64
+        xkc=0.80
+        xthetazme=5.625
+        xthetapd=6.625
+        
+        finmi=np.zeros(fprn.shape)
+        finme=np.zeros(fprn.shape)
+        ficmi=np.zeros(fprn.shape)
+        finmin15=np.zeros(fprn.shape)
+        finmen15=np.zeros(fprn.shape)
+        ficmin15=np.zeros(fprn.shape)
+        fmigrow=np.zeros(fprn.shape)
+        fmigrown15=np.zeros(fprn.shape)
+        ficme=np.zeros(fprn.shape)
+        fgmidc=np.zeros(fprn.shape)+.01
+        fgmedc=np.zeros(fprn.shape)+.1
+        ficmen15=np.zeros(fprn.shape)
+        fmegrow=np.zeros(fprn.shape)
+        fmegrown15=np.zeros(fprn.shape)
+        
+        for jj in range(fprn.shape[0]): #loop j
+            
+            for ji in range(fprn.shape[1]): # loop i
             
                finmi[jj,ji]  = (1.0 - xphi) * (fgmipn[jj,ji]+ fgmid[jj,ji])
                ficmi[jj,ji]  = (1.0 - xphi) * ((xthetapn * fgmipn[jj,ji]) + fgmidc[jj,ji])
                finmin15[jj,ji]  = (1.0 - xphi) * (rtphnn15[jj,ji]*fgmipn[jj,ji]+ rtdetrn15[jj,ji]*fgmid[jj,ji])
-               ficmin15[jj,ji]  = (1.0 - xphi) * ((xthetapn * rtphnn15[jj,ji]* fgmipn[jj,ji]) +  fgmidc[jj,ji])
+               ficmin15[jj,ji]  = (1.0 - xphi) * rtphnn15[jj,ji]*((xthetapn * fgmipn[jj,ji]) +  fgmidc[jj,ji])
+        
                fstarmi = (xbetan * xthetazmi) / (xbetac * xkc)
                fmith = (ficmi[jj,ji]/ (finmi[jj,ji]+ finmi[jj,ji]))
-               if (fmith == fstarmi):
+               
+               if (fmith >= fstarmi):
                   fmigrow[jj,ji]= xbetan * finmi[jj,ji]
                   fmiexcr[jj,ji]= 0.0
                   fmigrown15[jj,ji]= xbetan * finmin15[jj,ji]
-
+        
                else:
                   fmigrow[jj,ji]= (xbetac * xkc * ficmi[jj,ji]) / xthetazmi
                   fmiexcr[jj,ji]= ficmi[jj,ji]* ((xbetan / (fmith + fmith)) - ((xbetac * xkc) / xthetazmi))
@@ -236,19 +242,25 @@ def calc_growth():
                                 ((xthetapn * fgmepn[jj,ji]) +\
                                 (xthetapd * fgmepd[jj,ji]) +\
                                 (xthetazmi * fgmezmi[jj,ji]) + fgmedc[jj,ji])
-
+        
                finmen15[jj,ji]   = (1.0 - xphi) *\
                                 (rtphnn15[jj,ji]*fgmepn[jj,ji] + rtphdn15[jj,ji]*fgmepd[jj,ji] +\
                                 rtzmin15[jj,ji]*fgmezmi[jj,ji] + rtdetrn15[jj,ji]*fgmed[jj,ji])
+               total=(xthetapn  * fgmepn[jj,ji]) + (xthetapd * fgmepd[jj,ji]) + (xthetazmi * fgmezmi[jj,ji]) + fgmedc[jj,ji]
+               frac1=(xthetapn  * fgmepn[jj,ji]+1/3* fgmedc[jj,ji])/total
+               frac2=(xthetapd  * fgmepd[jj,ji]+1/3* fgmedc[jj,ji])/total
+               frac3=(xthetazmi * fgmezmi[jj,ji]+1/3* fgmedc[jj,ji])/total
+        
+               
                ficmen15[jj,ji]   = (1.0 - xphi) *\
-                                ((xthetapn *rtphnn15[jj,ji]* fgmepn[jj,ji]) +\
-                                 (xthetapd * rtphdn15[jj,ji]* fgmepd[jj,ji]) + \
-                                 (xthetazmi * rtzmin15[jj,ji]* fgmezmi[jj,ji]) + fgmedc[jj,ji])
-
+                                 (frac1*rtphnn15[jj,ji]+frac2*rtphdn15[jj,ji]+frac3*rtzmin15[jj,ji])*((xthetapn * fgmepn[jj,ji]) +\
+                                 (xthetapd * fgmepd[jj,ji]) + \
+                                 (xthetazmi * fgmezmi[jj,ji]) + fgmedc[jj,ji])
+        
                fstarme        = (xbetan * xthetazme) / (xbetac * xkc)
-  
+          
                fmeth   = (ficme[jj,ji] / (finme[jj,ji] + finme[jj,ji]))
-               if (fmeth == fstarme):
+               if (fmeth >= fstarme):
                   fmegrow[jj,ji] = xbetan * finme[jj,ji]
                   fmeexcr[jj,ji] = 0.0
                   fmegrown15[jj,ji] = xbetan * finmen15[jj,ji] 
@@ -256,9 +268,12 @@ def calc_growth():
                   fmegrow[jj,ji] = (xbetac * xkc * ficme[jj,ji]) / xthetazme
                   fmeexcr[jj,ji] = ficme[jj,ji] * ((xbetan / (fmeth + fmeth)) -  ((xbetac * xkc) / xthetazme))
                   fmegrown15[jj,ji] = (xbetac * xkc * ficmen15[jj,ji]) / xthetazme  
+        
+        return finmi,finme,fmigrow,fmigrown15,fmegrow,fmegrown15
 
-    return finmi,finme,fmigrow,fmigrown15,fmegrow,fmegrown15
 
+
+#%%
 
 def compute_fluxes():
     global fprn,zphn,fprd,zphd
@@ -270,6 +285,8 @@ def compute_fluxes():
     global PHN_flux,PHD_flux,ZMI_flux,ZME_flux,DET_flux,DIN_flux
     
     finmi,finme,fmigrow,fmigrown15,fmegrow,fmegrown15=calc_growth()
+    
+    
     fn_cons_n15=np.zeros(fprn.shape)
     fn_prod_n15=np.zeros(fprn.shape)
     fn_cons=np.zeros(fprn.shape)
@@ -297,10 +314,10 @@ def compute_fluxes():
                                       - fgmepd[jj,ji])
                    
                ZMI_flux[jj,ji] = b0 * (fmigrow[jj,ji] \
-                                  - fgmezmi[jj,ji] \
-                                  - fdzmi[jj,ji]\
-                                  - fdzmi2[jj,ji])
-                   
+                                   - fgmezmi[jj,ji] \
+                                   - fdzmi[jj,ji]\
+                                   - fdzmi2[jj,ji])
+             
                ZME_flux[jj,ji] = b0 * (fmegrow[jj,ji]            \
                                     - fdzme[jj,ji] \
                                     - fdzme2[jj,ji])
@@ -321,18 +338,19 @@ def compute_fluxes():
                                  -(fprd[jj,ji] * zphd[jj,ji])        
                  
                fn_prod[jj,ji] =(xphi * (fgmipn[jj,ji] + fgmid[jj,ji])) \
-                          + (xphi * (fgmepn[jj,ji]   \
-                                  + fgmepd[jj,ji]    \
-                                  + fgmezmi[jj,ji]   \
-                                  + fgmed[jj,ji]))  \
-                                  + fmiexcr[jj,ji]                           \
-                                  + fmeexcr[jj,ji]                           \
-                                  + fdd[jj,ji]              \
-                                  + freminn[jj,ji]                           \
-                                  + fdpn2[jj,ji]             \
-                                  + fdpd2[jj,ji]             \
-                                  + fdzmi2[jj,ji]            \
-                                  + rtzmen15[jj,ji]*fdzme2[jj,ji]             
+                            + (xphi * (fgmepn[jj,ji]   \
+                                    + fgmepd[jj,ji]    \
+                                    + fgmezmi[jj,ji]   \
+                                    + fgmed[jj,ji]))  \
+                                    + fmiexcr[jj,ji]                           \
+                                    + fmeexcr[jj,ji]                           \
+                                    + fdd[jj,ji]              \
+                                    + freminn[jj,ji]                           \
+                                    + fdpn2[jj,ji]             \
+                                    + fdpd2[jj,ji]             \
+                                    + fdzmi2[jj,ji]            \
+                                    + fdzme2[jj,ji] 
+                      
                DIN_flux[jj,ji] = b0 * ( fn_prod[jj,ji] + fn_cons[jj,ji] )
                
                PHN_N15_flux[jj,ji] = b0 * ( fcassimphn[jj,ji]*fprn[jj,ji] * zphn[jj,ji] \
@@ -348,10 +366,10 @@ def compute_fluxes():
                                       - rtphdn15[jj,ji]*fgmepd[jj,ji])
                    
                ZMI_N15_flux[jj,ji] = b0 * (fmigrown15[jj,ji] \
-                                  - rtzmin15[jj,ji]*fgmezmi[jj,ji] \
-                                  - rtzmin15[jj,ji]*fdzmi[jj,ji]\
-                                  - rtzmin15[jj,ji]*fdzmi2[jj,ji])
-                   
+                                   - rtzmin15[jj,ji]*fgmezmi[jj,ji] \
+                                   - rtzmin15[jj,ji]*fdzmi[jj,ji]\
+                                   - rtzmin15[jj,ji]*fdzmi2[jj,ji])
+               
                ZME_N15_flux[jj,ji] = b0 * (fmegrown15[jj,ji]            \
                                     - rtzmen15[jj,ji]*fdzme[jj,ji] \
                                     - rtzmen15[jj,ji]*fdzme2[jj,ji])
@@ -364,28 +382,31 @@ def compute_fluxes():
                                     - rtdetrn15[jj,ji]*fgmid[jj,ji]                   \
                                     - rtdetrn15[jj,ji]*fgmed[jj,ji]                   \
                                     - rtdetrn15[jj,ji]*fdd[jj,ji]                     \
-                                    + fslowgain[jj,ji] - fslowloss[jj,ji]             \
-                                    - (f_sbenin_n[jj,ji] / fse3t[jj,ji])           \
-                                    + ffast2slown[jj,ji] )            
+                                    + rtdetrn15[jj,ji]*(fslowgain[jj,ji] - fslowloss[jj,ji])             \
+                                    - (rtdetrn15[jj,ji]*f_sbenin_n[jj,ji] / fse3t[jj,ji])           \
+                                    + rtdetrn15[jj,ji]*ffast2slown[jj,ji] )            
   
                fn_cons_n15[jj,ji] = -(fcassimphn[jj,ji]*fprn[jj,ji] * zphn[jj,ji])\
                                       -(fcassimphd[jj,ji]*fprd[jj,ji] * zphd[jj,ji])        
                  
                fn_prod_n15[jj,ji] =(xphi * (rtphnn15[jj,ji]*fgmipn[jj,ji] + rtdetrn15[jj,ji]*fgmid[jj,ji])) \
-                          + (xphi * (rtphnn15[jj,ji]*fgmepn[jj,ji]   \
-                                  + rtphdn15[jj,ji]*fgmepd[jj,ji]    \
-                                  + rtzmin15[jj,ji]*fgmezmi[jj,ji]   \
-                                  + rtdetrn15[jj,ji]*fgmed[jj,ji]))  \
-                                  + fmiexcr[jj,ji]                           \
-                                  + fmeexcr[jj,ji]                           \
-                                  + rtdetrn15[jj,ji]*fdd[jj,ji]              \
-                                  + freminn[jj,ji]                           \
-                                  + rtphnn15[jj,ji]*fdpn2[jj,ji]             \
-                                  + rtphdn15[jj,ji]*fdpd2[jj,ji]             \
-                                  + rtzmin15[jj,ji]*fdzmi2[jj,ji]            \
-                                  + rtzmen15[jj,ji]*fdzme2[jj,ji]             
+                           + (xphi * (rtphnn15[jj,ji]*fgmepn[jj,ji]   \
+                                   + rtphdn15[jj,ji]*fgmepd[jj,ji]    \
+                                   + rtzmin15[jj,ji]*fgmezmi[jj,ji]   \
+                                   + rtdetrn15[jj,ji]*fgmed[jj,ji]))  \
+                                   + rtzmin15[jj,ji]*fmiexcr[jj,ji]                           \
+                                   + rtzmen15[jj,ji]*fmeexcr[jj,ji]                           \
+                                   + rtdetrn15[jj,ji]*fdd[jj,ji]              \
+                                   + (rtphdn15[jj,ji]+rtzmen15[jj,ji])/2*freminn[jj,ji]                           \
+                                   + rtphnn15[jj,ji]*fdpn2[jj,ji]             \
+                                   + rtphdn15[jj,ji]*fdpd2[jj,ji]             \
+                                   + rtzmin15[jj,ji]*fdzmi2[jj,ji]            \
+                                   + rtzmen15[jj,ji]*fdzme2[jj,ji]          
+ 
                DIN_N15_flux[jj,ji] = b0 * ( fn_prod_n15[jj,ji] + fn_cons_n15[jj,ji] )
     return
+
+
 
 
 def compute_new_concentrations():
@@ -438,11 +459,11 @@ fdzme2=np.zeros(fprn.shape)+.35 #loss term2
 fgmid=np.zeros(fprn.shape)+.3 # grazing zmi on det
 fgmed=np.zeros(fprn.shape)+.2 # grazing zme on det
 fdd=np.zeros(fprn.shape)+.22  #remin.
-fslowgain=np.zeros(fprn.shape) #sinking
-fslowloss=np.zeros(fprn.shape) #sinking
-f_sbenin_n=np.zeros(fprn.shape) #sinking
+fslowgain=np.zeros(fprn.shape)+.1 #sinking
+fslowloss=np.zeros(fprn.shape)+.1 #sinking
+f_sbenin_n=np.zeros(fprn.shape)+.1 #sinking
 fse3t=np.zeros(fprn.shape)+.1 #sinking
-ffast2slown=np.zeros(fprn.shape) #sinking
+ffast2slown=np.zeros(fprn.shape)+.1 #sinking
 
 fmiexcr=np.zeros(fprn.shape)+.1 #excr
 fmeexcr=np.zeros(fprn.shape)+.2
@@ -493,158 +514,75 @@ compute_new_concentrations()
 plt.close('all')
 fig = plt.figure(figsize=(15,10))
 ax1 = fig.add_subplot(231)
-plt.pcolormesh(np.where(tmask[0,:,:]==0,1,delta(PHN_next[0,0,:,:],PHN_N15_next[0,0,:,:])),vmin=4.9,vmax=5.1)
+plt.pcolormesh(np.where(tmask[0,:,:]==0,1,delta(PHN_next[0,0,:,:],PHN_N15_next[0,0,:,:])),vmin=4.7,vmax=5.4)
 plt.colorbar()
 plt.text(10,10,'PHN',color='white')
 ax1 = fig.add_subplot(232)
-plt.pcolormesh(np.where(tmask[0,:,:]==0,1,delta(PHD_next[0,0,:,:],PHD_N15_next[0,0,:,:])),vmin=4.9,vmax=5.1)
+plt.pcolormesh(np.where(tmask[0,:,:]==0,1,delta(PHD_next[0,0,:,:],PHD_N15_next[0,0,:,:])),vmin=4.7,vmax=5.4)
 plt.colorbar()
 plt.text(10,10,'PHD',color='white')
 ax1 = fig.add_subplot(233)
-plt.pcolormesh(np.where(tmask[0,:,:]==0,1,delta(ZMI_next[0,0,:,:],ZMI_N15_next[0,0,:,:])),vmin=4.9,vmax=5.1)
+plt.pcolormesh(np.where(tmask[0,:,:]==0,1,delta(ZMI_next[0,0,:,:],ZMI_N15_next[0,0,:,:])),vmin=4.7,vmax=5.4)
 plt.colorbar()
 plt.text(10,10,'ZMI',color='white')
 ax1 = fig.add_subplot(234)
-plt.pcolormesh(np.where(tmask[0,:,:]==0,1,delta(ZME_next[0,0,:,:],ZME_N15_next[0,0,:,:])),vmin=4.9,vmax=5.1)
+plt.pcolormesh(np.where(tmask[0,:,:]==0,1,delta(ZME_next[0,0,:,:],ZME_N15_next[0,0,:,:])),vmin=4.7,vmax=5.4)
 plt.colorbar()
 plt.text(10,10,'ZME',color='white')
 ax1 = fig.add_subplot(235)
-plt.pcolormesh(np.where(tmask[0,:,:]==0,1,delta(DIN_next[0,0,:,:],DIN_N15_next[0,0,:,:])),vmin=4.9,vmax=5.1)
+plt.pcolormesh(np.where(tmask[0,:,:]==0,1,delta(DIN_next[0,0,:,:],DIN_N15_next[0,0,:,:])),vmin=4.7,vmax=5.4)
 plt.colorbar()
 plt.text(10,10,'DIN',color='white')
 ax1 = fig.add_subplot(236)
-plt.pcolormesh(np.where(tmask[0,:,:]==0,1,delta(DET_next[0,0,:,:],DET_N15_next[0,0,:,:])),vmin=4.9,vmax=5.1)
+plt.pcolormesh(np.where(tmask[0,:,:]==0,1,delta(DET_next[0,0,:,:],DET_N15_next[0,0,:,:])),vmin=4.7,vmax=5.4)
 plt.colorbar()
 plt.text(10,10,'DET',color='white')
 
 plt.savefig('Updated_surface_concentration.png',dpi=200,pading=.1,bbox_inches='tight')
 
 
+#%%
+plt.close('all')
+fig = plt.figure(figsize=(15,10))
+ax1 = fig.add_subplot(231)
+plt.pcolormesh(np.where(tmask[0,:,:]==0,np.NaN,delta(PHN_next[0,0,:,:],PHN_N15_next[0,0,:,:])-delta(PHN[0,0,:,:],PHN_N15[0,0,:,:])),vmin=-0.00001,vmax=0.00001,cmap='cmo.balance')
+plt.colorbar()
+plt.text(10,10,'PHN',color='white')
+ax1 = fig.add_subplot(232)
+plt.pcolormesh(np.where(tmask[0,:,:]==0,np.NaN,delta(PHD_next[0,0,:,:],PHD_N15_next[0,0,:,:])-delta(PHD[0,0,:,:],PHD_N15[0,0,:,:])),vmin=-0.00001,vmax=0.00001,cmap='cmo.balance')
+plt.colorbar()
+plt.text(10,10,'PHD',color='white')
+ax1 = fig.add_subplot(233)
+plt.pcolormesh(np.where(tmask[0,:,:]==0,np.NaN,delta(ZMI_next[0,0,:,:],ZMI_N15_next[0,0,:,:])-delta(ZMI[0,0,:,:],ZMI_N15[0,0,:,:])),vmin=-0.00001,vmax=0.00001,cmap='cmo.balance')
+plt.colorbar()
+plt.text(10,10,'ZMI',color='white')
+ax1 = fig.add_subplot(234)
+plt.pcolormesh(np.where(tmask[0,:,:]==0,np.NaN,delta(ZME_next[0,0,:,:],ZME_N15_next[0,0,:,:])-delta(ZME[0,0,:,:],ZME_N15[0,0,:,:])),vmin=-0.00001,vmax=0.00001,cmap='cmo.balance')
+plt.colorbar()
+plt.text(10,10,'ZME',color='white')
+ax1 = fig.add_subplot(235)
+plt.pcolormesh(np.where(tmask[0,:,:]==0,np.NaN,delta(DIN_next[0,0,:,:],DIN_N15_next[0,0,:,:])-delta(DIN[0,0,:,:],DIN_N15[0,0,:,:])),vmin=-0.00001,vmax=0.00001,cmap='cmo.balance')
+plt.colorbar()
+plt.text(10,10,'DIN',color='white')
+ax1 = fig.add_subplot(236)
+plt.pcolormesh(np.where(tmask[0,:,:]==0,np.NaN,delta(DET_next[0,0,:,:],DET_N15_next[0,0,:,:])-delta(DET[0,0,:,:],DET_N15[0,0,:,:])),vmin=-0.00001,vmax=0.00001,cmap='cmo.balance')
+plt.colorbar()
+plt.text(10,10,'DET',color='white')
+
+plt.savefig('Updated_surface_concentration_difference.png',dpi=200,pading=.1,bbox_inches='tight')
+
 #%%% test for PHN according to Chris with eps=0 the delta should not change
 
-
-def calc_zmi_flux(b0,fmigrown15,fgmezmi,fdzmi,fdzmi2):
-    out=b0 * (fmigrown15 \
-            - fgmezmi \
-            - fdzmi\
-            - fdzmi2)
-    
-    return out
-
-def calc_zmi_n15_flux(b0,fmigrown15,fgmezmi,fdzmi,fdzmi2,rtzmin15):
-    out=b0 * (fmigrown15 \
-        - rtzmin15*fgmezmi \
-        - rtzmin15*fdzmi\
-        - rtzmin15*fdzmi2)
-
-    return out
-
-def calc_phn_flux(b0,fprn,zphn,fdpn,fdpn2,fgmipn,fgmepn):
-    out= b0 * ( fprn * zphn \
-                      - fdpn \
-                      - fdpn2 \
-                      - fgmipn \
-                      - fgmepn ) 
-    return out
-
-def calc_phn_n15_flux(b0,fprn,zphn,fdpn,fdpn2,fgmipn,fgmepn,fcassimphn,rtphnn15):
-    out = b0 * ( fcassimphn*fprn * zphn \
-                      - rtphnn15*fdpn \
-                      - rtphnn15*fdpn2 \
-                      - rtphnn15*fgmipn \
-                      - rtphnn15*fgmepn ) 
-    return out
-
-
-def calc(fprn,zphn,fprd,zphd,PHN,PHN_N15,DIN,DIN_N15):
-    eps_assim = 0.
-    #eps_excr= 0.
-    rn15std=0.0036765
-    rmin=0.0000001
-    rmax=0.9999999
-    rdt=40*60
-    un=(fprn * zphn + fprd * zphd) * rdt /max(DIN,rmin)
-    
-    un = min(un, rmax)
-    un = max(un, rmin)
-    #rno3 = biodin15/(biono3-biodin15)
-    rdin = DIN_N15/(max(DIN-DIN_N15,rmin))
-    
-    rdin = min(rdin,2*rn15std)
-    rdin = max(rdin,rn15std/2)
-    print(rdin)
-    #bassim = rno3 + eps_assim*(1-uno3)/uno3*log(1-uno3)*rno3/1000.
-    bassimphn=rdin+rdin*eps_assim*(1-un)/un*np.log(1-un)/1000.
-    fcassimphn=bassimphn/(1+bassimphn)
-    print(fcassimphn)
-    rtphnn15 = PHN_N15 /max(PHN,rmin)
-    rtphnn15 = min(rtphnn15,2.*rn15std/(1+rn15std))
-    rtphnn15 = max(rtphnn15,rn15std/(1+rn15std)/2.)
-    return  fcassimphn,rtphnn15
-
-#%%
-
-def calc_zmi(ZMI,ZMI_N15):
-  
-    
-    eps_assim = 0.
-    #eps_excr= 0.
-    rn15std=0.0036765
-    rmin=0.0000001
-    rmax=0.9999999
-    rdt=40*60
-    
-    rtzmin15 = ZMI_N15 /max(ZMI,rmin)
-    rtzmin15 = min(rtzmin15,2.*rn15std/(1+rn15std))
-    rtzmin15 = max(rtzmin15,rn15std/(1+rn15std)/2.)
-    return  rtzmin15
-
-initial_zmi=0.1
-initial_zmi_n15=initial_conditions(initial_zmi)
-delta(initial_zmi,initial_zmi_n15)
-rtzmin15=calc_zmi(initial_zmi,initial_zmi_n15)
-b0=1
-fmigrown15=2
-fgmezmi=1
-fdzmi=.4
-fdzmi2=.2
-flx_N=calc_zmi_flux(b0, fmigrown15, fgmezmi, fdzmi, fdzmi2)
-dayinsec=86400.
-new_zmi=initial_zmi+flx_N/dayinsec
-
-flx_N15=calc_zmi_n15_flux(b0, fmigrown15, fgmezmi, fdzmi, fdzmi2,rtzmin15)
-dayinsec=86400.
-new_zmi_n15=initial_zmi_n15+flx_N15/dayinsec
-print(delta(new_zmi,new_zmi_n15))
-
-#%%
-def run_test_phn():    
-    initial_phn=0.1
-    initial_phn_n15=initial_conditions(initial_phn)
-    
-    initial_din=4
-    initial_din_n15=initial_conditions(initial_din)
-    
-    fprn=.5
-    zphn=.2
-    fprd=.5
-    zphd=.2
-    
-    fdpn=1
-    fdpn2=2
-    fgmipn=1
-    fgmepn=1
-    b0=1
-    
-    print(delta(initial_phn,initial_phn_n15))
-    
-    fcassimphn,rtphnn15=calc(fprn,zphn,fprd,zphd,initial_phn,initial_phn_n15,initial_din,initial_din_n15)
-    
-    flx_N=calc_phn_flux(b0, fprn, zphn, fdpn, fdpn2, fgmipn, fgmepn) 
-    flx_N15=calc_phn_n15_flux(b0, fprn, zphn, fdpn, fdpn2, fgmipn, fgmepn, fcassimphn, rtphnn15)
-    dayinsec=86400.
-    new_phn=initial_phn+flx_N/dayinsec
-    new_phn_n15=initial_phn_n15+flx_N15/dayinsec
-    
-    print(delta(new_phn,new_phn_n15))
-
+# rdt=3
+# rmin=0.1
+# aa=np.zeros(fprn.shape)
+# for jj in range(fprn.shape[0]): #loop j
+#     for ji in range(fprn.shape[1]): # loop i
+#         #un[jj,ji]=max(DIN[0,0,jj,ji],rmin)
+#         un[jj,ji]=(fprn[jj,ji] * zphn[jj,ji] + fprd[jj,ji] * zphd[jj,ji]) * rdt /max(DIN[0,0,jj,ji],rmin)
+        
+plt.close('all')
+fig = plt.figure(figsize=(15,10))
+ax1 = fig.add_subplot(111)
+plt.pcolormesh(fcassimphn)
+plt.colorbar()
